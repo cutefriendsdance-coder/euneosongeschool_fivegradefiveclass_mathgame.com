@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>도형 대칭 수박게임 - Neon Black</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Matter.js Physics Engine -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;600;800&display=swap" rel="stylesheet">
+
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #050505;
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(6, 182, 212, 0.05), transparent 45%),
+                radial-gradient(circle at 85% 30%, rgba(236, 72, 153, 0.05), transparent 45%);
+            color: #f3f4f6;
+            touch-action: manipulation;
+            overflow-x: hidden;
+        }
+        .font-jua { font-family: 'Jua', sans-serif; }
+        
+        .neon-box {
+            background: rgba(12, 12, 18, 0.85);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.9);
+        }
+        .neon-border-cyan {
+            border-color: #06b6d4;
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.3), inset 0 0 10px rgba(6, 182, 212, 0.1);
+        }
+        .neon-border-pink {
+            border-color: #ec4899;
+            box-shadow: 0 0 15px rgba(236, 72, 153, 0.3), inset 0 0 10px rgba(236, 72, 153, 0.1);
+        }
+        .neon-btn {
+            background: linear-gradient(145deg, rgba(255,255,255,0.05), rgba(255,255,255,0.01));
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .neon-btn:hover:not(:disabled) {
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.5);
+            border-color: #06b6d4;
+        }
+        .neon-btn:active:not(:disabled) { transform: translateY(1px) scale(0.98); }
+        
+        .glow-text-cyan { text-shadow: 0 0 12px rgba(6, 182, 212, 0.8); }
+        .glow-text-pink { text-shadow: 0 0 12px rgba(236, 72, 153, 0.8); }
+        
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.5); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: rgba(6, 182, 212, 0.7); border-radius: 4px; }
+        
+        canvas { display: block; touch-action: none; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-2 sm:p-4 h-[100dvh]">
+
+    <!-- Start Screen Overlay -->
+    <div id="startScreen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-md p-4">
+        <div class="neon-box neon-border-cyan rounded-3xl p-6 sm:p-8 max-w-md w-full flex flex-col items-center text-center shadow-2xl relative">
+            <div class="w-16 h-16 rounded-2xl bg-cyan-950/50 border border-cyan-400/50 flex items-center justify-center text-3xl text-cyan-400 mb-4 shadow-[0_0_20px_rgba(6,182,212,0.4)]">
+                <i class="fa-solid fa-shapes"></i>
+            </div>
+            <h1 class="font-jua text-3xl sm:text-4xl text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-pink-400 to-amber-300 mb-1">
+                도형 대칭 수박게임
+            </h1>
+            <p class="text-xs sm:text-sm text-gray-400 mb-6">5학년 2학기 <span class="text-cyan-300 font-bold">합동과 대칭</span> (5단계 진화!)</p>
+
+            <div class="w-full bg-black/60 border border-gray-700/80 rounded-2xl p-4 mb-5">
+                <label class="block text-xs font-bold text-cyan-300 mb-2 text-left">
+                    <i class="fa-solid fa-user-astronaut mr-1"></i> 탐험가 닉네임
+                </label>
+                <input type="text" id="nicknameInput" value="대칭탐험가" placeholder="닉네임 입력 (최대 8자)" maxlength="8"
+                    class="w-full bg-gray-950 border border-gray-600 rounded-xl px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400 text-center text-lg font-jua transition-colors shadow-inner">
+            </div>
+
+            <button onclick="startGame()" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-cyan-600 via-purple-600 to-pink-600 font-jua text-xl text-white shadow-[0_0_20px_rgba(236,72,153,0.5)] hover:brightness-110 active:scale-95 transition-all mb-5">
+                게임 시작하기
+            </button>
+
+            <!-- Hall of Fame (Local) -->
+            <div class="w-full bg-black/70 border border-gray-800 rounded-2xl p-4 text-left">
+                <h3 class="font-jua text-amber-400 mb-2 flex justify-between items-center border-b border-gray-800 pb-2">
+                    <span><i class="fa-solid fa-trophy mr-1"></i> 명예의 전당 (Top 10)</span>
+                    <span class="text-[10px] text-gray-500 font-sans tracking-wide">LOCAL 저장소</span>
+                </h3>
+                <div id="startLeaderboard" class="flex flex-col gap-1.5 text-xs text-gray-300 max-h-36 overflow-y-auto pr-1">
+                    <!-- Dynamic Top 10 list will be injected here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header Bar -->
+    <header class="w-full max-w-5xl flex items-center justify-between mb-3 px-4 py-3 rounded-2xl neon-box">
+        <div class="flex items-center gap-3">
+            <h1 class="font-jua text-xl sm:text-2xl text-white glow-text-cyan flex items-center gap-2">
+                <i class="fa-solid fa-shapes text-pink-400 text-lg"></i>
+                도형 대칭
+            </h1>
+            <div class="hidden sm:flex px-2.5 py-1 bg-gray-950 rounded-lg border border-gray-700 text-xs text-cyan-300 font-bold">
+                <i class="fa-solid fa-user mr-1.5 text-pink-400"></i><span id="playerNameDisplay">대칭탐험가</span>
+            </div>
+        </div>
+        <div class="flex items-center gap-2 sm:gap-3">
+            <button onclick="toggleAudio()" class="neon-btn p-2 sm:px-3 sm:py-2 rounded-xl text-cyan-300 text-xs sm:text-sm" title="음향 온/오프">
+                <i id="soundIcon" class="fa-solid fa-volume-high"></i>
+            </button>
+            <button onclick="openGuideModal()" class="neon-btn px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold text-pink-300 flex items-center gap-1.5">
+                <i class="fa-solid fa-book"></i> <span class="hidden sm:inline">대칭 사전</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Game Section -->
+    <main class="w-full max-w-5xl flex-1 flex flex-col md:flex-row gap-3 min-h-0">
+        
+        <!-- Left Panel: Score, Next Shape & Items -->
+        <div class="md:w-64 flex flex-row md:flex-col gap-2 shrink-0">
+            <!-- Score Box -->
+            <div class="neon-box rounded-2xl p-3 flex-1 md:flex-none flex flex-col justify-center">
+                <div class="text-[11px] text-gray-400 font-bold mb-1 tracking-wide"><i class="fa-solid fa-star text-amber-400"></i> 현재 점수</div>
+                <div id="scoreText" class="font-jua text-2xl sm:text-3xl text-white glow-text-cyan">0</div>
+            </div>
+            
+            <!-- Next Shape Preview -->
+            <div class="neon-box neon-border-cyan rounded-2xl p-3 flex-1 md:flex-none flex flex-col items-center justify-center relative">
+                <div class="text-[11px] text-cyan-300 font-bold mb-1 absolute top-2 left-3">NEXT</div>
+                <div class="w-16 h-16 sm:w-20 sm:h-20 bg-black/50 rounded-xl flex items-center justify-center mt-3 shadow-inner border border-gray-800/50">
+                    <canvas id="nextCanvas" width="80" height="80"></canvas>
+                </div>
+                <div id="nextShapeName" class="font-jua text-sm text-cyan-300 mt-2">원</div>
+            </div>
+
+            <!-- Quiz Progress Gauge -->
+            <div class="neon-box rounded-2xl p-3 hidden md:flex flex-col gap-1.5">
+                <div class="flex justify-between text-xs font-bold text-amber-300">
+                    <span>퀴즈 게이지</span> <span id="quizCounterText">0/3</span>
+                </div>
+                <div class="w-full bg-gray-950 h-2.5 rounded-full overflow-hidden border border-gray-700">
+                    <div id="quizProgressBar" class="bg-gradient-to-r from-amber-400 to-pink-500 h-full w-0 transition-all duration-300"></div>
+                </div>
+            </div>
+
+            <!-- Items Panel -->
+            <div class="neon-box rounded-2xl p-3 flex gap-2 md:flex-col mt-auto md:mt-0">
+                <button id="bombBtn" onclick="useBombItem()" disabled class="neon-btn flex-1 py-2.5 rounded-xl flex flex-col items-center justify-center text-xs opacity-40 cursor-not-allowed">
+                    <i class="fa-solid fa-bomb text-red-400 text-lg sm:text-xl mb-1"></i>
+                    <span class="font-bold text-gray-200">폭탄 (<span id="bombCount">0</span>)</span>
+                </button>
+                <button id="passBtnDisplay" class="neon-btn flex-1 py-2.5 rounded-xl flex flex-col items-center justify-center text-xs border-lime-500/30 text-lime-300 opacity-40 cursor-default">
+                    <i class="fa-solid fa-forward-fast text-lg sm:text-xl mb-1"></i>
+                    <span class="font-bold">패스 (<span id="passCount">0</span>)</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Center Game Arena -->
+        <div class="flex-1 flex justify-center items-center relative h-[60vh] md:h-auto min-h-[400px]">
+            <div id="canvasWrap" class="relative w-full max-w-[450px] h-full neon-box neon-border-pink rounded-3xl overflow-hidden shadow-[0_0_35px_rgba(236,72,153,0.15)] flex flex-col">
+                <!-- Drop Header -->
+                <div class="w-full text-center py-1.5 bg-gray-950/90 text-[11px] text-pink-300 font-bold border-b border-gray-800 z-10 shadow-md">
+                    <i class="fa-solid fa-hand-pointer text-cyan-400 animate-pulse mr-1"></i> 화면을 터치하여 도형을 떨어뜨리세요!
+                </div>
+                
+                <!-- Matter.js Game Canvas Area -->
+                <div class="flex-1 relative bg-black overflow-hidden" id="gameArea">
+                    <canvas id="gameCanvas" class="absolute inset-0 w-full h-full"></canvas>
+                    
+                    <!-- Top Warning Line (Game Over Limit) -->
+                    <div class="absolute top-[80px] left-0 w-full border-b-2 border-dashed border-red-500/50 pointer-events-none flex justify-end pr-3 z-10">
+                        <span class="text-[10px] text-red-400 font-bold bg-red-950/80 px-1.5 py-0.5 rounded -mt-2.5 border border-red-800">한계선</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Evolution Guide (Exactly 5 levels) -->
+        <div class="hidden md:flex w-56 flex-col shrink-0">
+            <div class="neon-box rounded-2xl p-4 flex-1 border border-gray-800 flex flex-col">
+                <h3 class="font-jua text-sm text-cyan-300 mb-3 pb-2 border-b border-gray-800">
+                    <i class="fa-solid fa-layer-group mr-1"></i> 5단계 도형 진화
+                </h3>
+                <div id="shapeGuideList" class="flex flex-col gap-2 overflow-y-auto pr-1">
+                    <!-- Populated dynamically via JS to match fixed colors -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Easy Quiz Modal -->
+    <div id="quizModal" class="fixed inset-0 bg-black/95 backdrop-blur-md hidden items-center justify-center z-50 p-4">
+        <div class="neon-box w-full max-w-lg rounded-3xl p-5 sm:p-6 border-2 border-amber-500/60 shadow-[0_0_35px_rgba(245,158,11,0.2)]">
+            <div class="flex justify-between items-center mb-4">
+                <span class="px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 font-jua text-xs sm:text-sm border border-amber-500/40">
+                    <i class="fa-solid fa-brain mr-1"></i> 대칭 수학 퀴즈
+                </span>
+                <span class="text-xs text-cyan-300 font-bold">연속 정답: <span id="quizStreakText" class="text-white text-sm">0</span></span>
+            </div>
+            
+            <div class="bg-gray-950/80 rounded-2xl p-4 mb-4 border border-gray-700 min-h-[85px] flex items-center shadow-inner">
+                <h3 id="quizQuestion" class="font-jua text-lg sm:text-xl text-white leading-snug break-keep">질문이 여기에 표시됩니다.</h3>
+            </div>
+
+            <div id="quizOptions" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-4"></div>
+
+            <div id="quizExplanationBox" class="hidden bg-gray-900/90 rounded-2xl p-3.5 border border-gray-700 mb-4 shadow-inner">
+                <div class="font-bold text-sm mb-1" id="quizResultTitle">해설</div>
+                <p id="quizExplanationText" class="text-xs text-gray-300 leading-relaxed break-keep"></p>
+            </div>
+
+            <div class="flex justify-between items-center gap-2 mt-2">
+                <!-- Use Pass Item Directly During Quiz (Only shows if count > 0) -->
+                <button id="usePassInQuizBtn" onclick="useQuizPassItem()" class="hidden flex-1 px-4 py-3 rounded-xl neon-btn border-lime-500/50 text-lime-300 text-sm font-bold items-center justify-center gap-2">
+                    <i class="fa-solid fa-forward-fast"></i> 패스권 사용 (<span id="modalPassCount">0</span>)
+                </button>
+                <button id="quizContinueBtn" onclick="closeQuizModal()" class="hidden flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 text-white font-bold text-sm shadow-[0_0_15px_rgba(6,182,212,0.4)]">
+                    계속하기 <i class="fa-solid fa-arrow-right ml-1"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reward Choice Modal (Handles Rarity) -->
+    <div id="rewardModal" class="fixed inset-0 bg-black/95 backdrop-blur-md hidden items-center justify-center z-50 p-4">
+        <div class="neon-box w-full max-w-sm rounded-3xl p-6 border-2 border-cyan-400/60 text-center shadow-[0_0_30px_rgba(6,182,212,0.2)]">
+            <div class="text-4xl text-cyan-400 mb-3 animate-bounce"><i class="fa-solid fa-gift"></i></div>
+            <h3 class="font-jua text-2xl text-white mb-5">정답! 아이템 보상 선택</h3>
+            <div class="grid grid-cols-2 gap-3" id="rewardOptionsContainer">
+                <!-- Buttons injected dynamically based on RNG -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Symmetry Dictionary Modal -->
+    <div id="guideModal" class="fixed inset-0 bg-black/95 backdrop-blur-md hidden items-center justify-center z-50 p-4">
+        <div class="neon-box w-full max-w-xl rounded-3xl p-6 border border-pink-500/50 max-h-[82vh] flex flex-col">
+            <div class="flex justify-between items-center mb-4 border-b border-gray-800 pb-2">
+                <h3 class="font-jua text-xl text-pink-300"><i class="fa-solid fa-book mr-1"></i> 5학년 2학기: 합동과 대칭</h3>
+                <button onclick="closeGuideModal()" class="text-gray-400 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="overflow-y-auto text-sm text-gray-300 space-y-4 pr-2">
+                <div class="bg-gray-950 p-3.5 rounded-xl border border-gray-800 shadow-inner">
+                    <h4 class="text-cyan-300 font-bold mb-1 text-base">1. 합동</h4>
+                    <p class="text-xs text-gray-300 leading-relaxed">모양과 크기가 똑같아서 포개었을 때 완전히 겹쳐지는 두 도형을 말해요.</p>
+                </div>
+                <div class="bg-gray-950 p-3.5 rounded-xl border border-gray-800 shadow-inner">
+                    <h4 class="text-pink-300 font-bold mb-1 text-base">2. 선대칭도형</h4>
+                    <p class="text-xs text-gray-300 leading-relaxed">한 직선을 따라 접었을 때 완전히 겹쳐지는 도형이에요. 이때 접는 선을 <strong class="text-pink-400">대칭축</strong>이라고 해요.</p>
+                    <p class="text-xs text-gray-400 mt-1.5"><i class="fa-solid fa-caret-right text-pink-400"></i> 이등변삼각형(1개), 정삼각형(3개), 정사각형(4개), 원(무수히 많음)</p>
+                </div>
+                <div class="bg-gray-950 p-3.5 rounded-xl border border-gray-800 shadow-inner">
+                    <h4 class="text-amber-300 font-bold mb-1 text-base">3. 점대칭도형</h4>
+                    <p class="text-xs text-gray-300 leading-relaxed">어떤 점을 중심으로 180도 돌렸을 때 처음 도형과 완전히 겹쳐지는 도형이에요. 기준이 되는 점을 <strong class="text-amber-400">대칭의 중심</strong>이라고 해요.</p>
+                    <p class="text-xs text-gray-400 mt-1.5"><i class="fa-solid fa-caret-right text-amber-400"></i> 평행사변형, 직사각형, 마름모, 정사각형, 정육각형, 원</p>
+                </div>
+            </div>
+            <button onclick="closeGuideModal()" class="mt-5 py-3 rounded-xl bg-gray-800 hover:bg-gray-700 border border-gray-600 text-white font-bold transition-colors">닫기</button>
+        </div>
+    </div>
+
+    <!-- Game Over Modal -->
+    <div id="gameOverModal" class="fixed inset-0 bg-black/95 backdrop-blur-lg hidden items-center justify-center z-50 p-4">
+        <div class="neon-box w-full max-w-md rounded-3xl p-6 sm:p-8 border-2 border-red-500/60 text-center relative overflow-hidden shadow-[0_0_40px_rgba(239,68,68,0.2)]">
+            <h2 class="font-jua text-4xl text-red-400 mb-1 drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]">GAME OVER</h2>
+            <p class="text-xs text-gray-400 mb-5">도형이 한계선을 넘었습니다.</p>
+
+            <div class="bg-gray-950/80 rounded-2xl p-4 border border-gray-800 flex flex-col gap-2 mb-5 shadow-inner">
+                <div class="flex justify-between items-center text-sm">
+                    <span class="text-gray-400">최종 점수</span>
+                    <span id="finalScore" class="font-jua text-3xl text-cyan-400 drop-shadow-[0_0_8px_rgba(6,182,212,0.6)]">0</span>
+                </div>
+                <div class="flex justify-between items-center text-xs">
+                    <span class="text-gray-400">도형 합체 횟수</span>
+                    <span id="finalMerges" class="text-white font-bold">0회</span>
+                </div>
+            </div>
+
+            <!-- Hall of Fame List -->
+            <div class="bg-black/80 border border-gray-800 rounded-2xl p-4 mb-6 text-left">
+                <h3 class="font-jua text-xs text-amber-400 mb-2 border-b border-gray-800 pb-2 flex justify-between">
+                    <span><i class="fa-solid fa-ranking-star mr-1"></i> 명예의 전당 (Top 10)</span>
+                </h3>
+                <div id="endLeaderboard" class="flex flex-col gap-1.5 text-xs text-gray-300 max-h-32 overflow-y-auto pr-1">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <button onclick="restartGame()" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-red-600 via-pink-600 to-purple-600 font-jua text-xl text-white shadow-[0_0_20px_rgba(239,68,68,0.4)] hover:brightness-110 active:scale-95 transition-all">
+                다시 도전하기
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- 5 TIER EXACT SHAPES CONFIGURATION (Same level = Exact same color) ---
+        // Level 0: Circle (Cyan)
+        // Level 1: Isosceles Triangle (Pink)
+        // Level 2: Square (Lime)
+        // Level 3: Regular Hexagon (Amber)
+        // Level 4: Symmetric Watermelon (Red/Green combo)
+        const SHAPES = [
+            { level: 0, name: "원", radius: 24, score: 10, color: "#06b6d4", type: 'circle', desc: "선대칭(무한), 점대칭" },
+            { level: 1, name: "이등변삼각형", radius: 36, score: 30, color: "#ec4899", type: 'polygon', sides: 3, isIsosceles: true, desc: "선대칭(1개)" },
+            { level: 2, name: "정사각형", radius: 50, score: 90, color: "#84cc16", type: 'polygon', sides: 4, isIsosceles: false, desc: "선대칭(4개), 점대칭" },
+            { level: 3, name: "정육각형", radius: 68, score: 250, color: "#f59e0b", type: 'polygon', sides: 6, isIsosceles: false, desc: "선대칭(6개), 점대칭" },
+            { level: 4, name: "대칭 수박", radius: 92, score: 1000, color: "#ef4444", type: 'watermelon', desc: "궁극의 대칭 형태!" }
+        ];
+
+        // --- EASIER MATH QUESTION BANK (합동과 대칭 - 초등 5학년 2학기) ---
+        const QUIZ_BANK = [
+            { q: "모양과 크기가 똑같아서 완전히 겹쳐지는 두 도형을 무엇이라고 할까요?", options: ["합동", "대칭", "평행", "닮음"], answer: 0, exp: "모양과 크기가 같아 포개었을 때 완전히 겹치는 관계를 '합동'이라고 합니다." },
+            { q: "한 직선을 따라 접었을 때 완전히 겹쳐지는 도형은 무엇일까요?", options: ["선대칭도형", "점대칭도형", "회전도형", "입체도형"], answer: 0, exp: "한 직선을 접는 선으로 하여 접었을 때 겹쳐지면 선대칭도형입니다." },
+            { q: "선대칭도형에서 접는 기준이 되는 선의 이름은 무엇일까요?", options: ["대칭축", "중심선", "대각선", "수선"], answer: 0, exp: "접었을 때 기준이 되는 선을 '대칭축'이라고 부릅니다." },
+            { q: "이등변삼각형의 대칭축은 모두 몇 개일까요?", options: ["1개", "2개", "3개", "무수히 많다"], answer: 0, exp: "이등변삼각형은 반으로 접을 수 있는 선이 1개 있습니다." },
+            { q: "정사각형의 대칭축은 모두 몇 개일까요?", options: ["2개", "3개", "4개", "8개"], answer: 2, exp: "가로, 세로, 그리고 두 대각선 방향으로 접을 수 있어 총 4개입니다." },
+            { q: "다음 중 대칭축이 무수히 많이 나오는 도형은 무엇일까요?", options: ["정사각형", "이등변삼각형", "원", "직사각형"], answer: 2, exp: "원은 중심을 지나는 모든 직선이 대칭축이 되므로 셀 수 없이 많습니다." },
+            { q: "어떤 점을 중심으로 180도 돌렸을 때 처음 도형과 완전히 겹쳐지는 도형은?", options: ["선대칭도형", "점대칭도형", "이등변삼각형", "사다리꼴"], answer: 1, exp: "180도 돌려서 원래 모양과 같아지면 '점대칭도형'입니다." },
+            { q: "점대칭도형에서 180도 돌릴 때 기준이 되는 점을 무엇이라고 할까요?", options: ["대칭의 중심", "대응점", "원점", "꼭짓점"], answer: 0, exp: "돌리는 기준이 되는 중심점을 '대칭의 중심'이라고 합니다." },
+            { q: "알파벳 'M'은 반으로 접었을 때 겹쳐집니다. 어떤 도형일까요?", options: ["선대칭도형", "점대칭도형", "합동", "아무것도 아님"], answer: 0, exp: "세로로 반을 접으면 포개어지므로 선대칭도형입니다." },
+            { q: "알파벳 'S'는 180도 뒤집어도 원래 모습과 같습니다. 어떤 도형일까요?", options: ["선대칭도형", "점대칭도형", "합동", "아무것도 아님"], answer: 1, exp: "180도 회전 시 동일하므로 점대칭도형입니다." },
+            { q: "직사각형의 대칭축은 모두 몇 개일까요?", options: ["1개", "2개", "4개", "없다"], answer: 1, exp: "직사각형은 가로와 세로의 중간을 접는 선 2개를 가집니다." },
+            { q: "합동인 두 도형에서 겹쳐지는 변의 길이는 서로 어떨까요?", options: ["서로 같다", "다르다", "2배이다", "알 수 없다"], answer: 0, exp: "완전히 포개어지므로 대응하는 변의 길이는 똑같습니다." }
+        ];
+
+        // Engine Variables
+        let engine, render, runner, world;
+        let score = 0;
+        let nextShapeLevel = 0;
+        let currentDropBody = null;
+        let isDropping = false;
+        let dropCooldown = false;
+        
+        // Item & Progression Variables
+        let bombCount = 0;
+        let passCount = 0; // Starts at 0, rare to get
+        let mergeCount = 0;
+        let currentQuizIndex = -1;
+        let quizStreak = 0;
+        
+        // Local Leaderboard Variables
+        let nickname = "대칭탐험가";
+        let leaderboard = [];
+        const LEADERBOARD_KEY = 'neon_suika_game_hof_v2';
+
+        // Audio System
+        let audioCtx = null;
+        let soundMuted = false;
+
+        const { Engine, Render, Runner, Bodies, Composite, Events } = Matter;
+
+        window.onload = () => {
+            loadLeaderboard();
+            renderLeaderboard('startLeaderboard');
+        };
+
+        function loadLeaderboard() {
+            try {
+                const data = localStorage.getItem(LEADERBOARD_KEY);
+                if (data) leaderboard = JSON.parse(data);
+            } catch (e) {
+                console.error("Local storage error", e);
+                leaderboard = [];
+            }
+        }
+
+        function saveScore(finalScore) {
+            leaderboard.push({ name: nickname, score: finalScore });
+            leaderboard.sort((a, b) => b.score - a.score);
+            leaderboard = leaderboard.slice(0, 10); // Keep top 10
+            
+            try {
+                localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(leaderboard));
+            } catch (e) {
+                console.error("Local storage save error", e);
+            }
+        }
+
+        function renderLeaderboard(elementId) {
+            const container = document.getElementById(elementId);
+            container.innerHTML = "";
+            
+            if (leaderboard.length === 0) {
+                container.innerHTML = "<div class='text-center text-gray-500 py-3 text-xs'>등록된 랭킹이 없습니다. 1등에 도전하세요!</div>";
+                return;
+            }
+
+            leaderboard.forEach((entry, idx) => {
+                let rankClass = "text-gray-400";
+                if (idx === 0) rankClass = "text-yellow-400 font-bold text-sm glow-text-cyan";
+                else if (idx === 1) rankClass = "text-gray-200 font-bold";
+                else if (idx === 2) rankClass = "text-amber-500 font-bold";
+
+                const row = document.createElement("div");
+                row.className = "flex justify-between items-center py-1.5 border-b border-gray-800/80 last:border-0";
+                row.innerHTML = `
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-4 text-center ${rankClass}">${idx + 1}</span>
+                        <span class="text-white">${entry.name}</span>
+                    </div>
+                    <span class="text-cyan-300 font-jua">${entry.score.toLocaleString()}점</span>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function toggleAudio() {
+            soundMuted = !soundMuted;
+            const icon = document.getElementById('soundIcon');
+            icon.className = soundMuted ? "fa-solid fa-volume-xmark text-red-400" : "fa-solid fa-volume-high text-cyan-300";
+        }
+
+        function playTone(freq, type, duration, vol = 0.1) {
+            if (soundMuted || !audioCtx) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch (e) {}
+        }
+
+        function playSound(type) {
+            switch(type) {
+                case 'drop': playTone(400, 'sine', 0.1, 0.1); break;
+                case 'merge': 
+                    playTone(500, 'triangle', 0.1, 0.15);
+                    setTimeout(() => playTone(750, 'triangle', 0.15, 0.15), 50);
+                    break;
+                case 'correct': 
+                    playTone(600, 'sine', 0.15, 0.2); 
+                    setTimeout(() => playTone(900, 'sine', 0.25, 0.2), 100); 
+                    break;
+                case 'wrong': playTone(250, 'sawtooth', 0.3, 0.2); break;
+                case 'bomb': playTone(120, 'square', 0.4, 0.25); break;
+                case 'reward': playTone(880, 'sine', 0.3, 0.15); break;
+            }
+        }
+
+        function startGame() {
+            const input = document.getElementById('nicknameInput').value.trim();
+            if (input) nickname = input;
+            document.getElementById('playerNameDisplay').innerText = nickname;
+            
+            initAudio();
+            document.getElementById('startScreen').classList.add('hidden');
+            
+            initGame();
+        }
+
+        function initGame() {
+            score = 0;
+            mergeCount = 0;
+            bombCount = 0;
+            passCount = 0; // Reset pass count on new game
+            quizStreak = 0;
+            nextShapeLevel = Math.floor(Math.random() * 2); // Drops Tier 0 or 1
+            updateUI();
+            
+            if (engine) {
+                Engine.clear(engine);
+                Render.stop(render);
+                Runner.stop(runner);
+                if (render.canvas) render.canvas.remove();
+            }
+
+            const canvasWrap = document.getElementById('canvasWrap');
+            const cw = canvasWrap.clientWidth;
+            const ch = canvasWrap.clientHeight;
+            
+            engine = Engine.create({ enableSleeping: false });
+            world = engine.world;
+            
+            render = Render.create({
+                element: document.getElementById('gameArea'),
+                engine: engine,
+                canvas: document.getElementById('gameCanvas'),
+                options: {
+                    width: cw,
+                    height: ch,
+                    wireframes: false,
+                    background: 'transparent'
+                }
+            });
+
+            // Physics Boundaries - Inset walls and floor to prevent clipping
+            const floorHeight = 100;
+            const floorY = ch - 25; // Floor boundary sits 25px above canvas bottom
+            const wallThick = 60;
+            
+            // Floor positioned so its top edge is exactly at floorY
+            const floor = Bodies.rectangle(cw/2, floorY + floorHeight/2, cw + 200, floorHeight, { 
+                isStatic: true, 
+                label: 'floor' 
+            });
+            
+            // Walls inset by 4 pixels on left and right
+            const leftWall = Bodies.rectangle(-wallThick/2 + 4, ch/2, wallThick, ch * 2, { 
+                isStatic: true, label: 'wall'
+            });
+            const rightWall = Bodies.rectangle(cw + wallThick/2 - 4, ch/2, wallThick, ch * 2, { 
+                isStatic: true, label: 'wall'
+            });
+            
+            Composite.add(world, [floor, leftWall, rightWall]);
+
+            Events.on(render, 'afterRender', customRender);
+            Events.on(engine, 'collisionStart', handleCollision);
+
+            Render.run(render);
+            runner = Runner.create();
+            Runner.run(runner, engine);
+
+            drawNextShape();
+            populateEvolutionGuide();
+
+            const gameArea = document.getElementById('gameArea');
+            gameArea.onmousemove = handleInputMove;
+            gameArea.ontouchmove = handleInputMove;
+            gameArea.onclick = handleInputDrop;
+            gameArea.ontouchend = handleInputDrop;
+            
+            setInterval(checkGameOver, 1000);
+        }
+
+        function createShapeVertices(level, radius) {
+            const shapeDef = SHAPES[level];
+            let vertices = [];
+            
+            if (shapeDef.type === 'circle' || shapeDef.type === 'watermelon') return [];
+            
+            if (shapeDef.type === 'polygon') {
+                const sides = shapeDef.sides;
+                if (shapeDef.isIsosceles) {
+                    // Slim isosceles triangle to differentiate from equilateral
+                    vertices = [
+                        { x: 0, y: -radius },
+                        { x: radius * 0.7, y: radius * 0.9 },
+                        { x: -radius * 0.7, y: radius * 0.9 }
+                    ];
+                } else {
+                    for (let i = 0; i < sides; i++) {
+                        const angle = (i * 2 * Math.PI) / sides - (Math.PI / 2);
+                        vertices.push({ x: radius * Math.cos(angle), y: radius * Math.sin(angle) });
+                    }
+                }
+            }
+            return vertices;
+        }
+
+        function createShapeBody(x, y, level) {
+            const shapeDef = SHAPES[level];
+            const r = shapeDef.radius;
+            let body;
+            
+            if (shapeDef.type === 'circle' || shapeDef.type === 'watermelon') {
+                body = Bodies.circle(x, y, r, {
+                    restitution: 0.2,
+                    friction: 0.5,
+                    density: 0.001 * (level + 1)
+                });
+            } else {
+                const vertices = createShapeVertices(level, r);
+                body = Bodies.fromVertices(x, y, [vertices], {
+                    restitution: 0.15,
+                    friction: 0.6,
+                    density: 0.001 * (level + 1)
+                });
+            }
+            
+            body.shapeLevel = level; // Strictly binds this body to its level
+            body.label = 'shape';
+            return body;
+        }
+
+        function customRender() {
+            const ctx = render.context;
+            const cw = render.canvas.width;
+            const ch = render.canvas.height;
+            const floorY = ch - 25;
+
+            // Render Glowing Physics Floor Line
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#06b6d4';
+            ctx.strokeStyle = '#22d3ee';
+            ctx.lineWidth = 4;
+            ctx.lineCap = 'round';
+            
+            ctx.beginPath();
+            ctx.moveTo(4, floorY);
+            ctx.lineTo(cw - 4, floorY);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+
+            // Render Shapes strictly based on their `shapeLevel`
+            const bodies = Composite.allBodies(world);
+            bodies.forEach(body => {
+                if (body.label !== 'shape') return;
+                
+                // Fetch the exact definition for this level, ensuring consistent colors
+                const level = body.shapeLevel;
+                const shapeDef = SHAPES[level]; 
+                
+                ctx.save();
+                ctx.translate(body.position.x, body.position.y);
+                ctx.rotate(body.angle);
+                
+                ctx.shadowBlur = 12;
+                ctx.shadowColor = shapeDef.color;
+                ctx.fillStyle = "#0a0a0f"; // Inner dark fill
+                ctx.strokeStyle = shapeDef.color;
+                ctx.lineWidth = 3;
+
+                ctx.beginPath();
+                
+                if (shapeDef.type === 'circle' || shapeDef.type === 'watermelon') {
+                    ctx.arc(0, 0, shapeDef.radius, 0, 2 * Math.PI);
+                    ctx.fill();
+                    ctx.stroke();
+                    
+                    if (shapeDef.type === 'watermelon') {
+                        // Watermelon stripes
+                        ctx.strokeStyle = '#10b981'; // Green stripes
+                        ctx.lineWidth = 4;
+                        ctx.beginPath();
+                        ctx.arc(0, 0, shapeDef.radius * 0.75, -Math.PI/3, Math.PI/3);
+                        ctx.stroke();
+                        ctx.beginPath();
+                        ctx.arc(0, 0, shapeDef.radius * 0.75, Math.PI - Math.PI/3, Math.PI + Math.PI/3);
+                        ctx.stroke();
+                        
+                        ctx.shadowBlur = 0;
+                        ctx.font = `${shapeDef.radius * 0.8}px sans-serif`;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText('🍉', 0, 0);
+                    }
+                } else {
+                    if (body.parts && body.parts.length > 1) {
+                        const part = body.parts[1];
+                        ctx.moveTo(part.vertices[0].x - body.position.x, part.vertices[0].y - body.position.y);
+                        for (let j = 1; j < part.vertices.length; j++) {
+                            ctx.lineTo(part.vertices[j].x - body.position.x, part.vertices[j].y - body.position.y);
+                        }
+                    }
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                }
+
+                // Draw level number indicator inside shape
+                if (shapeDef.type !== 'watermelon') {
+                    ctx.shadowBlur = 0;
+                    ctx.fillStyle = shapeDef.color;
+                    ctx.font = `bold ${shapeDef.radius * 0.6}px 'Jua'`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(level + 1, 0, 2);
+                }
+
+                ctx.restore();
+            });
+
+            // Draw Drop Guide Line
+            if (currentDropBody && !isDropping) {
+                ctx.save();
+                ctx.translate(currentDropBody.position.x, currentDropBody.position.y);
+                
+                const sDef = SHAPES[nextShapeLevel];
+                ctx.globalAlpha = 0.6;
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = sDef.color;
+                ctx.strokeStyle = sDef.color;
+                ctx.fillStyle = sDef.color;
+                ctx.lineWidth = 2;
+
+                ctx.beginPath();
+                if (sDef.type === 'circle' || sDef.type === 'watermelon') {
+                    ctx.arc(0, 0, sDef.radius, 0, 2 * Math.PI);
+                } else {
+                    const verts = createShapeVertices(nextShapeLevel, sDef.radius);
+                    ctx.moveTo(verts[0].x, verts[0].y);
+                    for (let i = 1; i < verts.length; i++) ctx.lineTo(verts[i].x, verts[i].y);
+                }
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                // Dotted vertical line extending down to floorY
+                ctx.beginPath();
+                ctx.moveTo(0, sDef.radius);
+                ctx.lineTo(0, floorY - currentDropBody.position.y);
+                ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([5, 5]);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+        }
+
+        function handleInputMove(e) {
+            if (isDropping || dropCooldown) return;
+            if (e.type === 'touchmove') e.preventDefault();
+            
+            const rect = render.canvas.getBoundingClientRect();
+            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            let x = clientX - rect.left;
+            
+            const radius = SHAPES[nextShapeLevel].radius;
+            // Constrain movement inside walls
+            x = Math.max(6 + radius, Math.min(render.canvas.width - 6 - radius, x));
+            
+            if (!currentDropBody) {
+                currentDropBody = { position: { x: x, y: 35 } };
+            } else {
+                currentDropBody.position.x = x;
+            }
+        }
+
+        function handleInputDrop(e) {
+            if (isDropping || dropCooldown || !currentDropBody) return;
+            if (e.type === 'touchend') e.preventDefault();
+            
+            isDropping = true;
+            dropCooldown = true;
+            playSound('drop');
+            
+            const realBody = createShapeBody(currentDropBody.position.x, 35, nextShapeLevel);
+            Composite.add(world, realBody);
+            
+            currentDropBody = null;
+            nextShapeLevel = Math.floor(Math.random() * 2); // Generate Tier 0 or 1
+            drawNextShape();
+            updateUI();
+
+            setTimeout(() => {
+                isDropping = false;
+                dropCooldown = false;
+            }, 600);
+        }
+
+        function handleCollision(event) {
+            const pairs = event.pairs;
+            const bodiesToRemove = [];
+            const bodiesToAdd = [];
+
+            pairs.forEach(pair => {
+                const bodyA = pair.bodyA;
+                const bodyB = pair.bodyB;
+
+                if (bodyA.label === 'shape' && bodyB.label === 'shape') {
+                    if (bodyA.shapeLevel === bodyB.shapeLevel && !bodyA.isMerging && !bodyB.isMerging) {
+                        const level = bodyA.shapeLevel;
+                        
+                        // Limit to Max Level (Watermelon = 4)
+                        if (level >= 4) return; 
+
+                        bodyA.isMerging = true;
+                        bodyB.isMerging = true;
+
+                        const midX = (bodyA.position.x + bodyB.position.x) / 2;
+                        const midY = (bodyA.position.y + bodyB.position.y) / 2;
+
+                        bodiesToRemove.push(bodyA, bodyB);
+                        const newLevel = level + 1;
+                        const newBody = createShapeBody(midX, midY, newLevel);
+                        bodiesToAdd.push(newBody);
+                        
+                        score += SHAPES[newLevel].score;
+                        mergeCount++;
+                        playSound('merge');
+                        triggerConfetti(midX, midY, SHAPES[newLevel].color);
+
+                        // Trigger Math Quiz every 3 merges
+                        if (mergeCount % 3 === 0) {
+                            setTimeout(triggerQuiz, 500);
+                        }
+                    }
+                }
+            });
+
+            if (bodiesToRemove.length > 0) {
+                Composite.remove(world, bodiesToRemove);
+                Composite.add(world, bodiesToAdd);
+                updateUI();
+            }
+        }
+
+        function triggerConfetti(x, y, color) {
+            const rect = render.canvas.getBoundingClientRect();
+            const cx = (rect.left + (x / render.canvas.width) * rect.width) / window.innerWidth;
+            const cy = (rect.top + (y / render.canvas.height) * rect.height) / window.innerHeight;
+            
+            confetti({
+                particleCount: 20,
+                spread: 50,
+                origin: { x: cx, y: cy },
+                colors: [color, '#ffffff', '#22d3ee']
+            });
+        }
+
+        function triggerQuiz() {
+            Runner.stop(runner); // Pause physics engine
+            
+            currentQuizIndex = Math.floor(Math.random() * QUIZ_BANK.length);
+            const qData = QUIZ_BANK[currentQuizIndex];
+            
+            document.getElementById('quizQuestion').innerText = qData.q;
+            document.getElementById('quizStreakText').innerText = quizStreak;
+            document.getElementById('quizExplanationBox').classList.add('hidden');
+            document.getElementById('quizContinueBtn').classList.add('hidden');
+            
+            // Show Pass button only if user has a pass item
+            const usePassBtn = document.getElementById('usePassInQuizBtn');
+            const passCountSpan = document.getElementById('modalPassCount');
+            if (passCount > 0) {
+                usePassBtn.classList.remove('hidden');
+                usePassBtn.classList.add('flex');
+                passCountSpan.innerText = passCount;
+            } else {
+                usePassBtn.classList.add('hidden');
+                usePassBtn.classList.remove('flex');
+            }
+            
+            const optionsContainer = document.getElementById('quizOptions');
+            optionsContainer.innerHTML = '';
+            
+            qData.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = "w-full text-left p-3.5 rounded-xl bg-gray-900 border border-gray-700 hover:border-cyan-400 hover:bg-gray-800 text-white font-jua text-sm sm:text-base transition-all";
+                btn.innerText = `${idx + 1}. ${opt}`;
+                btn.onclick = () => handleQuizAnswer(idx, btn);
+                optionsContainer.appendChild(btn);
+            });
+            
+            document.getElementById('quizModal').classList.remove('hidden');
+            document.getElementById('quizModal').classList.add('flex');
+        }
+
+        function handleQuizAnswer(selectedIndex, btnElement) {
+            const btns = document.getElementById('quizOptions').querySelectorAll('button');
+            btns.forEach(b => b.disabled = true);
+            
+            // Hide pass button as question is answered
+            const usePassBtn = document.getElementById('usePassInQuizBtn');
+            usePassBtn.classList.add('hidden');
+            usePassBtn.classList.remove('flex');
+            
+            const qData = QUIZ_BANK[currentQuizIndex];
+            const isCorrect = selectedIndex === qData.answer;
+            
+            const expBox = document.getElementById('quizExplanationBox');
+            const expText = document.getElementById('quizExplanationText');
+            const resTitle = document.getElementById('quizResultTitle');
+            
+            expBox.classList.remove('hidden');
+            expText.innerText = qData.exp;
+            
+            if (isCorrect) {
+                playSound('correct');
+                btnElement.classList.replace('border-gray-700', 'border-lime-400');
+                btnElement.classList.replace('bg-gray-900', 'bg-lime-900/60');
+                resTitle.innerHTML = '<span class="text-lime-400"><i class="fa-solid fa-circle-check mr-1"></i> 정답입니다!</span>';
+                quizStreak++;
+                score += 150 * quizStreak;
+                
+                const contBtn = document.getElementById('quizContinueBtn');
+                contBtn.classList.remove('hidden');
+                contBtn.onclick = () => {
+                    document.getElementById('quizModal').classList.add('hidden');
+                    document.getElementById('quizModal').classList.remove('flex');
+                    showRewardModal(); // Show rewards on correct
+                };
+            } else {
+                playSound('wrong');
+                btnElement.classList.replace('border-gray-700', 'border-red-500');
+                btnElement.classList.replace('bg-gray-900', 'bg-red-900/60');
+                btns[qData.answer].classList.replace('border-gray-700', 'border-lime-400');
+                resTitle.innerHTML = '<span class="text-red-400"><i class="fa-solid fa-circle-xmark mr-1"></i> 아쉽네요! 오답입니다.</span>';
+                quizStreak = 0;
+                
+                const contBtn = document.getElementById('quizContinueBtn');
+                contBtn.classList.remove('hidden');
+                contBtn.onclick = closeQuizModal;
+            }
+            updateUI();
+        }
+
+        function useQuizPassItem() {
+            if (passCount > 0) {
+                passCount--;
+                playSound('correct');
+                quizStreak++;
+                score += 200 * quizStreak; // Bonus for passing
+                updateUI();
+                
+                document.getElementById('quizModal').classList.add('hidden');
+                document.getElementById('quizModal').classList.remove('flex');
+                showRewardModal();
+            }
+        }
+
+        function showRewardModal() {
+            playSound('reward');
+            const container = document.getElementById('rewardOptionsContainer');
+            container.innerHTML = '';
+
+            // Option 1: Always Bomb
+            const bombBtn = document.createElement('button');
+            bombBtn.className = "neon-btn p-4 rounded-2xl flex flex-col items-center justify-center gap-2 border-red-500/30 hover:border-red-400 group";
+            bombBtn.onclick = () => claimReward('bomb');
+            bombBtn.innerHTML = `
+                <i class="fa-solid fa-bomb text-red-400 text-3xl group-hover:scale-110 transition-transform"></i>
+                <span class="font-bold text-sm text-white">폭탄 1개</span>
+                <span class="text-[10px] text-gray-400">작은 도형 2개 파괴</span>
+            `;
+            container.appendChild(bombBtn);
+
+            // Option 2: RNG Logic (15% chance for Pass, 85% for Score Bonus)
+            const roll = Math.random();
+            const option2Btn = document.createElement('button');
+            option2Btn.className = "neon-btn p-4 rounded-2xl flex flex-col items-center justify-center gap-2 group ";
+            
+            if (roll <= 0.15) {
+                // Rare Pass Item (15%)
+                option2Btn.classList.add('border-lime-500/50', 'hover:border-lime-400');
+                option2Btn.onclick = () => claimReward('pass');
+                option2Btn.innerHTML = `
+                    <i class="fa-solid fa-forward-fast text-lime-400 text-3xl group-hover:scale-110 transition-transform drop-shadow-[0_0_8px_rgba(132,204,22,0.8)]"></i>
+                    <span class="font-bold text-sm text-lime-300">희귀! 패스 1개</span>
+                    <span class="text-[10px] text-gray-400">퀴즈 무조건 통과</span>
+                `;
+            } else {
+                // Common Point Bonus (85%)
+                option2Btn.classList.add('border-cyan-500/30', 'hover:border-cyan-400');
+                option2Btn.onclick = () => claimReward('points');
+                option2Btn.innerHTML = `
+                    <i class="fa-solid fa-coins text-cyan-400 text-3xl group-hover:scale-110 transition-transform"></i>
+                    <span class="font-bold text-sm text-cyan-300">보너스 점수</span>
+                    <span class="text-[10px] text-gray-400">+500점 획득</span>
+                `;
+            }
+            container.appendChild(option2Btn);
+
+            document.getElementById('rewardModal').classList.remove('hidden');
+            document.getElementById('rewardModal').classList.add('flex');
+        }
+
+        function claimReward(type) {
+            if (type === 'bomb') bombCount++;
+            else if (type === 'pass') passCount++;
+            else if (type === 'points') score += 500;
+            
+            document.getElementById('rewardModal').classList.add('hidden');
+            document.getElementById('rewardModal').classList.remove('flex');
+            updateUI();
+            
+            Runner.run(runner, engine); // Resume physics
+        }
+
+        function closeQuizModal() {
+            document.getElementById('quizModal').classList.add('hidden');
+            document.getElementById('quizModal').classList.remove('flex');
+            Runner.run(runner, engine); // Resume physics
+        }
+
+        function useBombItem() {
+            if (bombCount <= 0) return;
+            
+            const bodies = Composite.allBodies(world).filter(b => b.label === 'shape');
+            if (bodies.length < 1) return;
+
+            bombCount--;
+            playSound('bomb');
+            
+            // Destroy 2 lowest level shapes
+            bodies.sort((a, b) => a.shapeLevel - b.shapeLevel);
+            const toDestroy = bodies.slice(0, 2);
+            toDestroy.forEach(b => {
+                triggerConfetti(b.position.x, b.position.y, '#ef4444');
+            });
+            
+            Composite.remove(world, toDestroy);
+            updateUI();
+        }
+
+        function checkGameOver() {
+            if (!engine) return;
+            const bodies = Composite.allBodies(world).filter(b => b.label === 'shape');
+            
+            // If any shape crosses the y=80 line
+            const isOverflow = bodies.some(b => b.position.y < 80);
+            if (isOverflow) {
+                // Wait 1.5 seconds to see if it settles or was just bouncing
+                setTimeout(() => {
+                    const checkAgain = Composite.allBodies(world).filter(b => b.label === 'shape');
+                    if (checkAgain.some(b => b.position.y < 80)) {
+                        triggerGameOver();
+                    }
+                }, 1500);
+            }
+        }
+
+        function triggerGameOver() {
+            Runner.stop(runner);
+            
+            document.getElementById('finalScore').innerText = score.toLocaleString();
+            document.getElementById('finalMerges').innerText = mergeCount + "회";
+            
+            saveScore(score);
+            renderLeaderboard('endLeaderboard');
+            
+            document.getElementById('gameOverModal').classList.remove('hidden');
+            document.getElementById('gameOverModal').classList.add('flex');
+        }
+
+        function restartGame() {
+            document.getElementById('gameOverModal').classList.add('hidden');
+            document.getElementById('gameOverModal').classList.remove('flex');
+            initGame();
+        }
+
+        function updateUI() {
+            document.getElementById('scoreText').innerText = score.toLocaleString();
+            
+            const bombBtn = document.getElementById('bombBtn');
+            document.getElementById('bombCount').innerText = bombCount;
+            if (bombCount > 0) {
+                bombBtn.disabled = false;
+                bombBtn.classList.remove('opacity-40', 'cursor-not-allowed');
+                bombBtn.classList.add('border-red-500/50', 'text-red-300');
+            } else {
+                bombBtn.disabled = true;
+                bombBtn.classList.add('opacity-40', 'cursor-not-allowed');
+                bombBtn.classList.remove('border-red-500/50', 'text-red-300');
+            }
+
+            document.getElementById('passCount').innerText = passCount;
+            const passDisp = document.getElementById('passBtnDisplay');
+            if (passCount > 0) {
+                passDisp.classList.replace('opacity-40', 'opacity-100');
+                passDisp.classList.add('border-lime-500/60', 'glow-text-lime');
+            } else {
+                passDisp.classList.replace('opacity-100', 'opacity-40');
+                passDisp.classList.remove('border-lime-500/60', 'glow-text-lime');
+            }
+
+            const gauge = mergeCount % 3;
+            document.getElementById('quizCounterText').innerText = `${gauge}/3`;
+            document.getElementById('quizProgressBar').style.width = `${(gauge / 3) * 100}%`;
+        }
+
+        function drawNextShape() {
+            const canvas = document.getElementById('nextCanvas');
+            const ctx = canvas.getContext('2d');
+            const shapeDef = SHAPES[nextShapeLevel];
+            
+            document.getElementById('nextShapeName').innerText = shapeDef.name;
+            document.getElementById('nextShapeName').style.color = shapeDef.color;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            ctx.translate(canvas.width / 2, canvas.height / 2);
+            
+            const scale = 0.55;
+            ctx.scale(scale, scale);
+
+            ctx.shadowBlur = 12;
+            ctx.shadowColor = shapeDef.color;
+            ctx.fillStyle = '#0a0a0f';
+            ctx.strokeStyle = shapeDef.color;
+            ctx.lineWidth = 3;
+
+            ctx.beginPath();
+            if (shapeDef.type === 'circle' || shapeDef.type === 'watermelon') {
+                ctx.arc(0, 0, shapeDef.radius, 0, 2 * Math.PI);
+            } else {
+                const verts = createShapeVertices(nextShapeLevel, shapeDef.radius);
+                ctx.moveTo(verts[0].x, verts[0].y);
+                for (let i = 1; i < verts.length; i++) ctx.lineTo(verts[i].x, verts[i].y);
+            }
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        function populateEvolutionGuide() {
+            const list = document.getElementById('shapeGuideList');
+            list.innerHTML = '';
+            
+            SHAPES.forEach((s, idx) => {
+                const div = document.createElement('div');
+                div.className = "flex items-center gap-2.5 bg-gray-900/60 p-2.5 rounded-xl border border-gray-800 shadow-inner";
+                
+                const cvs = document.createElement('canvas');
+                cvs.width = 36; cvs.height = 36;
+                const ctx = cvs.getContext('2d');
+                ctx.translate(18, 18);
+                const scale = s.radius > 60 ? 12/s.radius : 0.35;
+                ctx.scale(scale, scale);
+                ctx.strokeStyle = s.color;
+                ctx.fillStyle = '#0a0a0f';
+                ctx.lineWidth = 4;
+                
+                ctx.beginPath();
+                if (s.type === 'circle' || s.type === 'watermelon') {
+                    ctx.arc(0, 0, s.radius, 0, 2 * Math.PI);
+                } else {
+                    const verts = createShapeVertices(idx, s.radius);
+                    ctx.moveTo(verts[0].x, verts[0].y);
+                    for(let i=1; i<verts.length; i++) ctx.lineTo(verts[i].x, verts[i].y);
+                }
+                ctx.closePath();
+                ctx.fill(); 
+                ctx.stroke();
+
+                div.innerHTML = `
+                    <div class="shrink-0 w-9 h-9 flex items-center justify-center">${cvs.outerHTML}</div>
+                    <div class="flex-1 min-w-0">
+                        <div class="text-xs font-bold truncate" style="color: ${s.color}">${idx + 1}. ${s.name}</div>
+                        <div class="text-[10px] text-gray-400 truncate">${s.desc}</div>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function openGuideModal() {
+            document.getElementById('guideModal').classList.remove('hidden');
+            document.getElementById('guideModal').classList.add('flex');
+        }
+        function closeGuideModal() {
+            document.getElementById('guideModal').classList.add('hidden');
+            document.getElementById('guideModal').classList.remove('flex');
+        }
+    </script>
+</body>
+</html>
